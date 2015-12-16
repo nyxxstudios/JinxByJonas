@@ -46,6 +46,9 @@ public class Jinx {
 		
 		Move selection;
 		
+                //Github test change
+                System.out.println("Github test");
+                
 		if(gameState.getTurn() == 0){
 			jinxIsPlayingVertical = true;
 			
