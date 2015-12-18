@@ -14,6 +14,7 @@ import jargs.gnu.CmdLineParser.UnknownOptionException;
  * Sie veranlasst eine Verbindung zum Spielserver und waehlt eine Strategie.
  * 
  */
+/** useless comment*/
 public class Starter extends AbstractClient {
 
 	public Starter(String host, int port, String reservation, String strategy)
