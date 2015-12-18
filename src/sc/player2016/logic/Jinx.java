@@ -83,7 +83,7 @@ public class Jinx {
 //					+ selection.getX() + ", y="
 //					+ selection.getY());
 //			Field nextMove = calcBestMove(board.getField(gameState.getLastMove().getX(), gameState.getLastMove().getY()), lastMoveByJinx, DEPTH);
-                        Field nextMove = calcBestMoveIterative(board.getField(gameState.getLastMove().getX(), gameState.getLastMove().getY()),lastMoveByJinx, 700);
+                        Field nextMove = calcBestMoveIterative(board.getField(gameState.getLastMove().getX(), gameState.getLastMove().getY()),lastMoveByJinx, 1500);
 			selection = new Move(nextMove.getX(), nextMove.getY());
 		}
 
@@ -95,9 +95,13 @@ public class Jinx {
 	}
 	
 	private static int numberOfCutoffs;
-	private static Field calcBestMoveIterative(Field lastMove, Field secondLastMove, int timeToSearchInMS){
-		long startTime = System.currentTimeMillis();
-                boolean timeIsOver = false;
+        private static long startTime;
+        private static int timeToSearchInMS;
+        private static boolean timeIsOver;
+	private static Field calcBestMoveIterative(Field lastMove, Field secondLastMove, int timeToSearch){
+		startTime = System.currentTimeMillis();
+                timeToSearchInMS = timeToSearch;
+                timeIsOver = false;
                 
                 Field result = null;
                 numberOfCutoffs = 0;
@@ -106,11 +110,22 @@ public class Jinx {
                 ArrayList<Field> sortedMoves = new ArrayList<Field>();
                 ArrayList<Float> valuesOfSortedMoves = new ArrayList<>();
                 
-                float maxValue = Integer.MIN_VALUE;
+                float maxValue;
 		
                 for(int depth=1; !timeIsOver; depth++){
                     sortedMoves.clear();
                     valuesOfSortedMoves.clear();
+                    
+                    //reset maxValue 
+                    //e. g. depth 2 always has smaller/equal values than depth 1,
+                    //because it is the opponents turn (look at the evaluation-function of Board).
+                    //(result can stay the same, because the sortedMoves are ordered
+                    //by value; that means, if the search stops because of time,
+                    //the current depth is probably not finished yet, but the
+                    //first moves of sortedMoves are already inspected. The first moves were the best of the calculation with depth-1,
+                    //so if there are better moves at the end of sortedMoves, Jinx
+                    //would not have played them after the search results of depth-1)
+                    maxValue = Integer.MIN_VALUE;
                     
                     System.out.println("Depth " + depth);
                     
@@ -123,6 +138,7 @@ public class Jinx {
 			if(value > maxValue){
                             maxValue = value;
                             result = move;
+                            System.out.println("----------1. Move " + move + " with max = " + value + " ---------");
 			}
                         //Insert the inspected/evaluated move at the right position
                         //(the smaller the value the higher the list index =>
@@ -130,10 +146,14 @@ public class Jinx {
                         //erlier it will be inspected in the next iteration (with 
                         //depth increased by 1))
                         insertMoveIn(sortedMoves, valuesOfSortedMoves, move, value);
-                        if(System.currentTimeMillis()-startTime > timeToSearchInMS){
-                             timeIsOver = true;
-                             System.out.println("\nDepth = " + depth + "  " + i + "/" + possibleMoves.size() + " moves");
-                             break;
+//                        if(System.currentTimeMillis()-startTime > timeToSearchInMS){
+//                             timeIsOver = true;
+//                             System.out.println("\nDepth = " + depth + "  " + i + "/" + possibleMoves.size() + " moves");
+//                             break;
+//                        }
+                        if(timeIsOver){
+                            System.out.println("\nDepth = " + depth + "  " + i + "/" + possibleMoves.size() + " moves");
+                            break;
                         }
                     }
                     //possibleMoves are now resorted for faster search with depth++
@@ -195,14 +215,14 @@ public class Jinx {
                                     break;			
                                 }
 					
-				if(depth == depthAtStart){
-					nextMoveByJinx = move;
-                                        System.out.println("----------1. Move " + move + " with max = " + value + " ---------");
-				}else if(depth == depthAtStart-1){
-                                        System.out.println("-----2. Move " + move + " with max = " + value + " ----");
-                                }else if(depth == depthAtStart-2){
-                                        System.out.println("3. Move " + move + " with max = " + value);
-                                }
+//				if(depth == depthAtStart){
+//					nextMoveByJinx = move;
+//                                        System.out.println("----------1. Move " + move + " with max = " + value + " ---------");
+//				}else if(depth == depthAtStart-1){
+//                                        System.out.println("-----2. Move " + move + " with max = " + value + " ----");
+//                                }else if(depth == depthAtStart-2){
+//                                        System.out.println("3. Move " + move + " with max = " + value);
+//                                }
 			}
 		}
 		return maxValue;
@@ -230,17 +250,24 @@ public class Jinx {
                                     numberOfCutoffs++;// searched, that had a better (higher) result for jinx)
                                     break;			
                                 }
-                                if(depth == depthAtStart){
-                                        System.out.println("----------1. Move " + move + " with min = " + value + " ---------");
-				}else if(depth == depthAtStart-1){
-                                        System.out.println("-----2. Move " + move + " with min = " + value + " ----");
-                                }else if(depth == depthAtStart-2){
-                                        System.out.println("3. Move " + move + " with min = " + value);
-                                }
+//                                if(depth == depthAtStart){
+//                                        System.out.println("----------1. Move " + move + " with min = " + value + " ---------");
+//				}else if(depth == depthAtStart-1){
+//                                        System.out.println("-----2. Move " + move + " with min = " + value + " ----");
+//                                }else if(depth == depthAtStart-2){
+//                                        System.out.println("3. Move " + move + " with min = " + value);
+//                                }
 			}
 //                        if(depth == depthAtStart-1 && move.getX() == 19 ){
 //                            System.out.println("Move " + move + " has " + value);
 //                        }
+                        if(depth == depthAtStart-1 && System.currentTimeMillis()-startTime > timeToSearchInMS){
+                            timeIsOver = true;
+                            //not all possibleMoves were searched yet,
+                            //so do not include this min() call results
+                            //in the final move decision
+                            return Integer.MIN_VALUE;
+                        }
 		}
 //                if(depth == depthAtStart-1){
 //                    System.out.println("Best min move after " + lastMove + ": " + minMove + " mit " + minValue);
