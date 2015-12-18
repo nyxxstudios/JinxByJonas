@@ -44,11 +44,18 @@ public class Jinx {
 		
 		System.out.println("Round " + gameState.getRound() + "  ----------------------");
 		
-		Move selection;
-		
-                //Github test change
-                System.out.println("Github test");
                 
+//                //test insert move
+//                ArrayList<Field> l = new ArrayList<Field>();
+//                ArrayList<Float> l2 = new ArrayList<Float>();
+//                insertMoveIn(l, l2, new Field(10,0) , 10);
+//                insertMoveIn(l, l2, new Field(5,0) , 5);
+//                insertMoveIn(l, l2, new Field(8,0) , 8);
+//                insertMoveIn(l, l2, new Field(2,0) , 2);
+//                insertMoveIn(l, l2, new Field(70,0) , 70);
+//                System.out.println("List: " + l);
+		Move selection;
+
 		if(gameState.getTurn() == 0){
 			jinxIsPlayingVertical = true;
 			
@@ -75,7 +82,8 @@ public class Jinx {
 //			System.out.println("*** setze Strommast auf x="
 //					+ selection.getX() + ", y="
 //					+ selection.getY());
-			Field nextMove = calcBestMove(board.getField(gameState.getLastMove().getX(), gameState.getLastMove().getY()), lastMoveByJinx, DEPTH);
+//			Field nextMove = calcBestMove(board.getField(gameState.getLastMove().getX(), gameState.getLastMove().getY()), lastMoveByJinx, DEPTH);
+                        Field nextMove = calcBestMoveIterative(board.getField(gameState.getLastMove().getX(), gameState.getLastMove().getY()),lastMoveByJinx, 700);
 			selection = new Move(nextMove.getX(), nextMove.getY());
 		}
 
@@ -86,62 +94,83 @@ public class Jinx {
 		return selection;
 	}
 	
-	
-	private static boolean timeIsOver = false;
-//	private static Field calcBestMoveIterative(Field lastMove, Field secondLastMove, int timeToSearch){
-//		long startTime = System.currentTimeMillis();
-//		ArrayList<Field> possibleMoves = board.getPossibleMoves(lastMove, secondLastMove);
-//		
-//		for(int depth=1; !timeIsOver; depth++){
-//			possibleMoves = iterativeMax(depth, Integer.MIN_VALUE, Integer.MAX_VALUE, lastMove, secondLastMove, depth, possibleMoves)
-//		}
-//	}
-	
-	private static float iterativeMax(int depth, float alpha, float beta, Field lastMove, Field secondLastMove, int depthAtStart, ArrayList<Field> sortedMoves){
-		ArrayList<Field> resortedMoves = new ArrayList<Field>();//just needed when depth==dephAtStart
+	private static int numberOfCutoffs;
+	private static Field calcBestMoveIterative(Field lastMove, Field secondLastMove, int timeToSearchInMS){
+		long startTime = System.currentTimeMillis();
+                boolean timeIsOver = false;
+                
+                Field result = null;
+                numberOfCutoffs = 0;
+		ArrayList<Field> possibleMoves = board.getPossibleMoves(lastMove, secondLastMove);
 		
-		if(depth == 0){
-			return board.evaluateBoardPosition();
-		}else if(depth == depthAtStart-1){
-			System.out.print(".");
-		}
+                ArrayList<Field> sortedMoves = new ArrayList<Field>();
+                ArrayList<Float> valuesOfSortedMoves = new ArrayList<>();
+                
+                float maxValue = Integer.MIN_VALUE;
 		
-		ArrayList<Field> possibleMoves = new ArrayList<Field>();
-		if(depth==depthAtStart){
-			possibleMoves = sortedMoves;
-		}else{
-			possibleMoves = board.getPossibleMoves(lastMove, secondLastMove);
-		}
-		
-		float maxValue = alpha; //minimum that jinx can reach (found in previous nodes)
-		for(Field move : possibleMoves){
+                for(int depth=1; !timeIsOver; depth++){
+                    sortedMoves.clear();
+                    valuesOfSortedMoves.clear();
+                    
+                    System.out.println("Depth " + depth);
+                    
+                    int i=0;
+                    for(Field move : possibleMoves){
+                        i++;
 			board.updateBoard(move, true);
-			float value = min(depth-1, maxValue, beta, move, lastMove, depthAtStart);
+			float value = min(depth-1, maxValue, Float.MAX_VALUE, move, lastMove, depth);
 			board.undoMove(move, true);
 			if(value > maxValue){
-				maxValue = value;
-				if(maxValue >= beta)//opponent would never allow this move (previous combination
-					break;			// searched, that had a better (lower) result for opponent)
-					
-				if(depth == depthAtStart){
-					nextMoveByJinx = move;
-				}
+                            maxValue = value;
+                            result = move;
 			}
-			if(depth==depthAtStart){
-				//resort the possibleMoves at start
-				
-			}
-		}
-		return maxValue;
+                        //Insert the inspected/evaluated move at the right position
+                        //(the smaller the value the higher the list index =>
+                        //the better the move is at the currently searched depth the 
+                        //erlier it will be inspected in the next iteration (with 
+                        //depth increased by 1))
+                        insertMoveIn(sortedMoves, valuesOfSortedMoves, move, value);
+                        if(System.currentTimeMillis()-startTime > timeToSearchInMS){
+                             timeIsOver = true;
+                             System.out.println("\nDepth = " + depth + "  " + i + "/" + possibleMoves.size() + " moves");
+                             break;
+                        }
+                    }
+                    //possibleMoves are now resorted for faster search with depth++
+                    //This sort hopefully leads to much more cutoffs in the alpha-beta-search
+                    possibleMoves = cloneList(sortedMoves);
+                    
+                    
+                    System.out.println("Possible moves: " + possibleMoves);
+                    
+                    System.out.println("Best move: " + result + " with " + maxValue);
+                    System.out.println("--------end of depth = " + depth + " ------");
+                    System.out.println();
+                    
+                    
+                }//end of 'increase depth by 1 loop'    
+                System.out.println("Zeit: " + (System.currentTimeMillis() - startTime)/(float)1000);
+                System.out.println("Number of cutoffs = " + numberOfCutoffs);
+                //timeIsOver => return best move found
+                return result;
 	}
 	
-//	private static void insertMoveIn(ArrayList<Field><int> sortedMoves, Field move, int value))
+	private static void insertMoveIn(ArrayList<Field> sortedMoves, ArrayList<Float> valuesOfSortedMoves, Field move, float value){
+            int i=0;
+            while(i<valuesOfSortedMoves.size() && valuesOfSortedMoves.get(i) >= value){
+                i++;
+            }
+            sortedMoves.add(i, move);
+            valuesOfSortedMoves.add(i, value);
+        }
 	
 	//needs last Move of the opponent. Calculates next move reacting to olastMove.
 	private static Field calcBestMove(Field lastMove, Field secondLastMove, int depth){
 		long startTime = System.currentTimeMillis();
+                numberOfCutoffs = 0;
 		float evaluation = max(depth, -100000, 100000, lastMove, secondLastMove, depth);
 		System.out.println("Time = " + (System.currentTimeMillis() - startTime)/(float)1000 + " ");
+                System.out.println("Number of cutoffs = " + numberOfCutoffs);
 		return nextMoveByJinx;
 		
 	}
@@ -161,12 +190,19 @@ public class Jinx {
 			board.undoMove(move, true);
 			if(value > maxValue){
 				maxValue = value;
-				if(maxValue >= beta)//opponent would never allow this move (previous combination
-					break;			// searched, that had a better (lower) result for opponent)
+				if(maxValue >= beta){ //opponent would never allow this move (previous combination
+                                    numberOfCutoffs++;// searched, that had a better (lower) result for opponent)
+                                    break;			
+                                }
 					
 				if(depth == depthAtStart){
 					nextMoveByJinx = move;
-				}
+                                        System.out.println("----------1. Move " + move + " with max = " + value + " ---------");
+				}else if(depth == depthAtStart-1){
+                                        System.out.println("-----2. Move " + move + " with max = " + value + " ----");
+                                }else if(depth == depthAtStart-2){
+                                        System.out.println("3. Move " + move + " with max = " + value);
+                                }
 			}
 		}
 		return maxValue;
@@ -178,20 +214,37 @@ public class Jinx {
 		if(depth == 0){
 			return board.evaluateBoardPosition();
 		}else if(depth == depthAtStart-1){
-			System.out.print(".");
+//			System.out.print(".");
 		}
 		ArrayList<Field> possibleMoves = board.getPossibleMoves(lastMove, secondLastMove);
 		float minValue = beta; //maximum that beta can reach (found in previous nodes)
+                Field minMove = null;
 		for(Field move : possibleMoves){
 			board.updateBoard(move, false);
 			float value = max(depth-1,alpha, minValue, move, lastMove, depthAtStart);
 			board.undoMove(move, false);
 			if(value < minValue){
 				minValue = value;
-				if(minValue <= alpha)//jinx would never allow this move (previous combination
-					break;			// searched, that had a better (higher) result for jinx)
+                                minMove = move;
+				if(minValue <= alpha){//jinx would never allow this move (previous combination
+                                    numberOfCutoffs++;// searched, that had a better (higher) result for jinx)
+                                    break;			
+                                }
+                                if(depth == depthAtStart){
+                                        System.out.println("----------1. Move " + move + " with min = " + value + " ---------");
+				}else if(depth == depthAtStart-1){
+                                        System.out.println("-----2. Move " + move + " with min = " + value + " ----");
+                                }else if(depth == depthAtStart-2){
+                                        System.out.println("3. Move " + move + " with min = " + value);
+                                }
 			}
+//                        if(depth == depthAtStart-1 && move.getX() == 19 ){
+//                            System.out.println("Move " + move + " has " + value);
+//                        }
 		}
+//                if(depth == depthAtStart-1){
+//                    System.out.println("Best min move after " + lastMove + ": " + minMove + " mit " + minValue);
+//                }
 		return minValue;
 	}
 	
@@ -221,6 +274,14 @@ public class Jinx {
 		}
 		System.out.println();
 	}
+        
+        private static ArrayList<Field> cloneList(ArrayList<Field> list) {
+            ArrayList<Field> clone = new ArrayList<Field>(list.size());
+            for(Field item: list) {
+                clone.add(item);
+            }
+            return clone;
+        }
 	
 }
 

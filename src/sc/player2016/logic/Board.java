@@ -166,7 +166,7 @@ public class Board {
 		//The higher the result is, the better is the situation for jinx
 		float result;
 		
-		//First (since 0.01) evaluation method: points by jinx
+		//First (since 0.01) evaluation method: points by jinx/points by opponent
 		if(pointsByOpponent != 0){
 			result = pointsByJinx/(float)(pointsByOpponent);
 		}else{
