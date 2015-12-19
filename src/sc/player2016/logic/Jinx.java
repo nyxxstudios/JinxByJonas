@@ -224,6 +224,13 @@ public class Jinx {
 //                                        System.out.println("3. Move " + move + " with max = " + value);
 //                                }
 			}
+                        if(depth >= depthAtStart-3 && System.currentTimeMillis()-startTime > timeToSearchInMS){
+                            timeIsOver = true;
+                            //not all possibleMoves were searched yet,
+                            //so do not include this max() call results
+                            //in the final move decision
+                            return Integer.MAX_VALUE;
+                        }
 		}
 		return maxValue;
 	}
@@ -261,7 +268,7 @@ public class Jinx {
 //                        if(depth == depthAtStart-1 && move.getX() == 19 ){
 //                            System.out.println("Move " + move + " has " + value);
 //                        }
-                        if(depth == depthAtStart-1 && System.currentTimeMillis()-startTime > timeToSearchInMS){
+                        if(depth >= depthAtStart-3 && System.currentTimeMillis()-startTime > timeToSearchInMS){
                             timeIsOver = true;
                             //not all possibleMoves were searched yet,
                             //so do not include this min() call results
